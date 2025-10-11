@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symphonaut - Recomendaciones Inteligentes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.5.95/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@2.6.10/dist/vuetify.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+    <div id="app">
+        <v-app>
+            <v-app-bar app color="deep-purple darken-3" dark>
+                <v-toolbar-title class="headline font-weight-bold">
+                    <v-icon large class="mr-2">mdi-spotify</v-icon>
+                    Symphonaut
+                </v-toolbar-title>
+                <v-spacer></v-spacer>
+                <v-chip v-if="user.name" color="green" text-color="white">
+                    <v-avatar left>
+                        <v-icon>mdi-account-circle</v-icon>
+                    </v-avatar>
+                    {{ user.name }}
+                </v-chip>
+            </v-app-bar>
+
+            <v-main>
+                <v-container class="py-8">
+                    <v-row justify="center">
+                        <v-col cols="12" md="8" lg="6">
+                            <v-card v-if="!isAuthenticated" class="elevation-6 mb-8 text-center pa-6">
+                                <v-card-title class="justify-center">
+                                    <v-icon large left color="green">mdi-spotify</v-icon>
+                                    Conecta tu cuenta de Spotify
+                                </v-card-title>
+                                <v-card-text>
+                                    Para obtener recomendaciones personalizadas y controlar tu música, necesitas iniciar sesión.
+                                </v-card-text>
+                                <v-card-actions class="justify-center">
+                                    <v-btn large color="green" dark @click="login">
+                                        <v-icon left>mdi-login</v-icon>
+                                        Iniciar Sesión con Spotify
+                                    </v-btn>
+                                </v-card-actions>
+                            </v-card>
+
+                            <v-card v-else class="elevation-6 mb-8">
+                                <v-card-title class="primary white--text">
+                                    <v-icon left>mdi-account-music</v-icon>
+                                    Tu Perfil Musical
+                                </v-card-title>
+                                
+                                <v-card-text class="pa-6">
+                                    <v-form ref="profileForm">
+                                        <v-combobox
+                                            v-model="userProfile.genres"
+                                            :items="availableGenres"
+                                            label="Géneros favoritos"
+                                            multiple
+                                            chips
+                                            deletable-chips
+                                            clearable
+                                            required
+                                        ></v-combobox>
+                                        
+                                        <v-select
+                                            v-model="userProfile.mood"
+                                            :items="moods"
+                                            label="¿Cómo te sientes hoy?"
+                                            prepend-icon="mdi-emoticon"
+                                        ></v-select>
+                                        
+                                        <v-slider
+                                            v-model="userProfile.energy"
+                                            label="Energía preferida"
+                                            min="0"
+                                            max="100"
+                                            thumb-label="always"
+                                            prepend-icon="mdi-speedometer"
+                                        ></v-slider>
+                                        
+                                        <v-btn 
+                                          block 
+                                          large 
+                                          color="primary" 
+                                          @click="getRecommendations"
+                                          :loading="loading"
+                                          :disabled="loading"
+                                          class="mt-4"
+                                        >
+                                            <v-icon left>mdi-magnify</v-icon>
+                                            Obtener Recomendaciones
+                                        </v-btn>
+                                    </v-form>
+                                </v-card-text>
+                            </v-card>
+
+                            <v-alert v-if="alert.message" :type="alert.type" dense outlined dismissible v-model="alert.show">
+                                {{ alert.message }}
+                            </v-alert>
+
+                            <div v-if="recommendations.length > 0">
+                                <v-subheader class="text-h6 font-weight-bold">
+                                    <v-icon color="primary" left>mdi-playlist-music</v-icon>
+                                    Recomendaciones para ti
+                                </v-subheader>
+                                
+                                <v-row>
+                                    <v-col 
+                                        v-for="song in recommendations" 
+                                        :key="song.id"
+                                        cols="12" sm="6" md="6"
+                                    >
+                                        <song-card 
+                                            :song="song"
+                                            @like="likeSong"
+                                            @play="playSong"
+                                        ></song-card>
+                                    </v-col>
+                                </v-row>
+                            </div>
+                            
+                            <v-alert 
+                                v-if="showEmptyState && isAuthenticated"
+                                border="left"
+                                colored-border
+                                color="deep-purple lighten-1"
+                                elevation="2"
+                                class="mt-6"
+                            >
+                                <div class="text-center">
+                                    <v-icon large class="mb-2">mdi-music-note-off</v-icon>
+                                    <h3 class="headline">Completa tu perfil musical</h3>
+                                    <p>Selecciona tus géneros favoritos y preferencias para que Symphonaut encuentre tu próxima canción favorita.</p>
+                                </div>
+                            </v-alert>
+                        </v-col>
+                    </v-row>
+                </v-container>
+            </v-main>
+            
+            <v-footer color="deep-purple darken-3" padless dark>
+                <v-col class="text-center py-4" cols="12">
+                    Symphonaut - Sistema Experto Musical &copy; {{ new Date().getFullYear() }}
+                </v-col>
+            </v-footer>
+        </v-app>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script type="module" src="src/app.js"></script>
+</body>
+</html>
