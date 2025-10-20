@@ -3,265 +3,426 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Symphonaut - Recomendaciones Inteligentes</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
+    <meta name="description" content="Symphonaut - Descubre música personalizada con recomendaciones inteligentes de Spotify">
+    <title>Symphonaut - Recomendaciones Musicales Inteligentes</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.5.95/css/materialdesignicons.min.css" rel="stylesheet">
+    
+    <!-- Vuetify -->
     <link href="https://cdn.jsdelivr.net/npm/vuetify@2.6.10/dist/vuetify.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="src/styles.css">
+    
+    <style>
+        * {
+            font-family: 'Poppins', 'Roboto', sans-serif !important;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+        }
+        
+        .v-application {
+            background: transparent !important;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .song-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .song-card:hover {
+            transform: translateY(-4px);
+        }
+        
+        .song-card.playing {
+            border: 2px solid #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+        }
+        
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s;
+        }
+        
+        .fade-enter, .fade-leave-to {
+            opacity: 0;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .v-app-bar {
+            backdrop-filter: blur(20px);
+            background: rgba(63, 81, 181, 0.95) !important;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .hover-lift {
+            transition: transform 0.2s ease;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body>
     <div id="app">
         <v-app>
-            <v-app-bar app dense color="indigo darken-4" dark elevation="6">
-            <v-toolbar-title class="d-flex align-center">
-                <v-avatar size="36" class="mr-3" tile>
-                <v-img src="https://cdn.worldvectorlogo.com/logos/spotify-2.svg" contain></v-img>
-                </v-avatar>
-                <div>
-                <div class="headline font-weight-black" style="letter-spacing:.6px">Symphonaut</div>
-                <div class="caption">Recomendaciones Inteligentes</div>
-                </div>
-            </v-toolbar-title>
+            <!-- App Bar -->
+            <v-app-bar app dense dark elevation="0" height="70">
+                <v-container class="d-flex align-center pa-0">
+                    <div class="d-flex align-center">
+                        <v-avatar size="40" class="mr-3">
+                            <v-img src="https://cdn.worldvectorlogo.com/logos/spotify-2.svg" contain></v-img>
+                        </v-avatar>
+                        <div>
+                            <div class="text-h5 font-weight-bold" style="letter-spacing: -0.5px;">
+                                Symphonaut
+                            </div>
+                            <div class="caption" style="margin-top: -4px;">Música Inteligente</div>
+                        </div>
+                    </div>
 
-            <v-spacer></v-spacer>
+                    <v-spacer></v-spacer>
 
-            <v-chip v-if="user.name" color="green accent-4" text-color="white" class="ma-2">
-                <v-avatar left>
-                <v-icon>mdi-account-circle</v-icon>
-                </v-avatar>
-                {{ user.name }}
-            </v-chip>
+                    <v-chip 
+                        v-if="user.name" 
+                        color="green accent-4" 
+                        text-color="white" 
+                        class="mr-2"
+                        @click="statsVisible = !statsVisible"
+                    >
+                        <v-avatar left>
+                            <v-icon small>mdi-account-circle</v-icon>
+                        </v-avatar>
+                        {{ user.name }}
+                    </v-chip>
+                    
+                    <v-btn 
+                        v-if="isAuthenticated" 
+                        icon 
+                        @click="logout"
+                        title="Cerrar sesión"
+                    >
+                        <v-icon>mdi-logout</v-icon>
+                    </v-btn>
+                </v-container>
             </v-app-bar>
 
             <v-main>
-            <v-container class="py-8">
-                <v-row justify="center">
-                <v-col cols="12" md="8" lg="6">
-                    <v-card v-if="!isAuthenticated" class="elevation-12 mb-8 pa-8 text-center" shaped>
-                    <v-card-title class="justify-center">
-                        <v-icon large left color="green accent-4">mdi-spotify</v-icon>
-                        Conecta tu cuenta de Spotify
-                    </v-card-title>
-                    <v-card-text class="pb-6">
-                        Para obtener recomendaciones personalizadas y controlar tu música, inicia sesión con Spotify.
-                    </v-card-text>
-                    <v-card-actions class="justify-center">
-                        <v-btn large color="green accent-4" dark @click="login" elevation="8">
-                        <v-icon left>mdi-login</v-icon>
-                        Iniciar Sesión con Spotify
-                        </v-btn>
-                    </v-card-actions>
-                    </v-card>
+                <v-container class="py-8">
+                    <!-- Stats Section -->
+                    <transition name="fade">
+                        <v-row v-if="statsVisible && recommendations.length > 0" class="mb-6">
+                            <v-col cols="12" md="4">
+                                <v-card class="stats-card pa-4 text-center" elevation="8">
+                                    <v-icon large class="mb-2">mdi-music-note-multiple</v-icon>
+                                    <div class="text-h4 font-weight-bold">{{ recommendationsCount }}</div>
+                                    <div class="caption">Recomendaciones</div>
+                                </v-card>
+                            </v-col>
+                            <v-col cols="12" md="4">
+                                <v-card class="stats-card pa-4 text-center" elevation="8">
+                                    <v-icon large class="mb-2">mdi-star</v-icon>
+                                    <div class="text-h4 font-weight-bold">{{ averageScore }}%</div>
+                                    <div class="caption">Match Promedio</div>
+                                </v-card>
+                            </v-col>
+                            <v-col cols="12" md="4">
+                                <v-card class="stats-card pa-4 text-center" elevation="8">
+                                    <v-icon large class="mb-2">mdi-playlist-music</v-icon>
+                                    <div class="text-h4 font-weight-bold">{{ userProfile.genres.length }}</div>
+                                    <div class="caption">Géneros Activos</div>
+                                </v-card>
+                            </v-col>
+                        </v-row>
+                    </transition>
 
-                    <v-card v-else class="elevation-12 mb-8" shaped>
-                    <v-sheet tile color="indigo darken-4" class="white--text pa-4">
-                        <div class="d-flex align-center">
-                        <v-icon left>mdi-account-music</v-icon>
-                        <div>
-                            <div class="subtitle-1 font-weight-bold">Tu Perfil Musical</div>
-                            <div class="caption">Perfiles más precisos = mejores recomendaciones</div>
-                        </div>
-                        </div>
-                    </v-sheet>
-
-                    <v-card-text class="pa-6">
-                        <v-form ref="profileForm">
-                        <v-combobox
-                            v-model="userProfile.genres"
-                            :items="availableGenres"
-                            label="Géneros favoritos"
-                            multiple
-                            chips
-                            deletable-chips
-                            clearable
-                            required
-                        ></v-combobox>
-
-                        <v-select
-                            v-model="userProfile.mood"
-                            :items="moods"
-                            label="¿Cómo te sientes hoy?"
-                            prepend-icon="mdi-emoticon"
-                            class="mt-4"
-                        ></v-select>
-
-                        <v-slider
-                            v-model="userProfile.energy"
-                            label="Energía preferida"
-                            min="0"
-                            max="100"
-                            thumb-label="always"
-                            prepend-icon="mdi-speedometer"
-                            class="mt-4"
-                        ></v-slider>
-
-                        <v-btn
-                          block
-                          large
-                          color="indigo"
-                          dark
-                          @click="getRecommendations"
-                          :loading="loading"
-                          :disabled="loading"
-                          class="mt-6"
-                          elevation="8"
-                        >
-                            <v-icon left>mdi-magnify</v-icon>
-                            Obtener Recomendaciones
-                        </v-btn>
-                        </v-form>
-                    </v-card-text>
-                    </v-card>
-
-                    <v-alert v-if="alert.message" :type="alert.type" dense outlined dismissible v-model="alert.show" class="mb-6">
-                    {{ alert.message }}
-                    </v-alert>
-
-                    <div v-if="recommendations.length > 0">
-                    <v-subheader class="text-h6 font-weight-bold mb-4">
-                        <v-icon color="indigo" left>mdi-playlist-music</v-icon>
-                        Recomendaciones para ti
-                    </v-subheader>
-
-                    <v-row>
-                        <v-col
-                        v-for="song in recommendations"
-                        :key="song.id"
-                        cols="12" sm="6" md="6"
-                        >
-                        <!-- Modern tech/pro song card -->
-                        <v-hover v-slot="{ hover }">
-                            <v-card :elevation="hover ? 12 : 4" class="rounded-lg" style="overflow: hidden;">
-                            <div class="d-flex" style="min-height: 130px;">
-                                <v-img
-                                :src="song.albumArt || song.image"
-                                width="140"
-                                aspect-ratio="1"
-                                class="grey--text"
-                                >
-                                <template v-slot:placeholder>
-                                    <v-row class="fill-height ma-0" align="center" justify="center">
-                                    <v-progress-circular indeterminate color="grey lighten-1"></v-progress-circular>
+                    <v-row justify="center">
+                        <v-col cols="12" md="10" lg="8">
+                            <!-- Login Card -->
+                            <v-card v-if="!isAuthenticated" class="glass-card elevation-12 mb-8 pa-8 text-center" shaped>
+                                <v-avatar size="80" class="mb-4">
+                                    <v-img src="https://cdn.worldvectorlogo.com/logos/spotify-2.svg" contain></v-img>
+                                </v-avatar>
+                                
+                                <h1 class="text-h4 font-weight-bold mb-3 gradient-text">
+                                    Bienvenido a Symphonaut
+                                </h1>
+                                
+                                <p class="text-h6 grey--text mb-6">
+                                    Descubre música personalizada con IA
+                                </p>
+                                
+                                <v-card-text class="pb-6">
+                                    <v-row>
+                                        <v-col cols="12" md="4" class="text-center">
+                                            <v-icon large color="purple">mdi-brain</v-icon>
+                                            <p class="mt-2">Recomendaciones Inteligentes</p>
+                                        </v-col>
+                                        <v-col cols="12" md="4" class="text-center">
+                                            <v-icon large color="green">mdi-spotify</v-icon>
+                                            <p class="mt-2">Integración con Spotify</p>
+                                        </v-col>
+                                        <v-col cols="12" md="4" class="text-center">
+                                            <v-icon large color="blue">mdi-music-note</v-icon>
+                                            <p class="mt-2">Personalización Total</p>
+                                        </v-col>
                                     </v-row>
-                                </template>
-
-                                <!-- Play overlay -->
-                                <div
-                                    class="d-flex align-center justify-center"
-                                    style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.6)); transition: opacity .2s;"
-                                    :style="{ opacity: hover ? 1 : 0 }"
-                                >
-                                    <v-btn icon large color="green accent-4" @click.stop="playSong(song)">
-                                    <v-icon x-large>mdi-play-circle</v-icon>
-                                    </v-btn>
-                                </div>
-                                </v-img>
-
-                                <v-card-text class="pa-4" style="flex: 1;">
-                                <div class="d-flex justify-space-between">
-                                    <div>
-                                    <div class="font-weight-bold text-subtitle-1" style="letter-spacing:.2px;">
-                                        {{ song.title }}
-                                    </div>
-                                    <div class="caption grey--text">
-                                        {{ (song.artists || []).slice(0,2).join(', ') }}
-                                        <span v-if="song.album"> — {{ song.album }}</span>
-                                    </div>
-                                    </div>
-
-                                    <div class="text-right">
-                                    <v-badge color="indigo" content="{{ song.matchPercent ? Math.round(song.matchPercent) + '%' : '' }}" v-if="song.matchPercent">
-                                        <template v-slot:badge>
-                                        <span class="white--text caption" style="font-weight:600;">{{ Math.round(song.matchPercent) }}%</span>
-                                        </template>
-                                    </v-badge>
-                                    </div>
-                                </div>
-
-                                <div class="mt-3">
-                                    <v-chip small class="ma-1" color="grey lighten-4" text-color="black" v-for="g in (song.genres || []).slice(0,3)" :key="g">
-                                    {{ g }}
-                                    </v-chip>
-                                </div>
-
-                                <div class="d-flex align-center justify-space-between mt-4">
-                                    <div style="width: 58%;">
-                                    <div class="caption grey--text">Popularidad</div>
-                                    <v-progress-linear :value="(song.popularity || 0)" height="6" color="green accent-4" rounded></v-progress-linear>
-                                    </div>
-
-                                    <div class="d-flex flex-column align-end" style="width: 38%;">
-                                    <div class="caption grey--text">Energía</div>
-                                    <div class="d-flex align-center">
-                                        <v-icon small color="amber darken-2" class="mr-1">mdi-flash</v-icon>
-                                        <span class="subtitle-2 font-weight-medium">{{ song.energy != null ? song.energy : (userProfile.energy || '—') }}</span>
-                                    </div>
-                                    </div>
-                                </div>
                                 </v-card-text>
-                            </div>
-
-                            <v-divider-divider></v-
-
-                            <v-card-actions class="pa-3" style="background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0));">
-                                <v-btn icon @click="playSong(song)" :title="'Reproducir ' + song.title">
-                                <v-icon color="indigo">mdi-play</v-icon>
+                                
+                                <v-btn 
+                                    x-large 
+                                    color="green accent-4" 
+                                    dark 
+                                    @click="login" 
+                                    elevation="8"
+                                    class="px-8"
+                                >
+                                    <v-icon left>mdi-spotify</v-icon>
+                                    Conectar con Spotify
                                 </v-btn>
-
-                                <v-btn icon @click="likeSong(song)" :title="'Me gusta'">
-                                <v-icon :color="song.liked ? 'pink' : 'grey'">
-                                    {{ song.liked ? 'mdi-heart' : 'mdi-heart-outline' }}
-                                </v-icon>
-                                </v-btn>
-
-                                <v-btn icon @click="$emit && $emit('add', song)" :title="'Añadir a playlist'">
-                                <v-icon color="grey">mdi-playlist-plus</v-icon>
-                                </v-btn>
-
-                                <v-spacer></v-spacer>
-
-                                <v-btn small text color="grey" @click="() => {}">
-                                <v-icon left small>mdi-dots-horizontal</v-icon>
-                                Más
-                                </v-btn>
-                            </v-card-actions>
                             </v-card>
-                        </v-hover>
+
+                            <!-- Profile Form -->
+                            <v-card v-else class="glass-card elevation-12 mb-8" shaped>
+                                <v-sheet 
+                                    tile 
+                                    class="pa-6"
+                                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
+                                >
+                                    <div class="d-flex align-center white--text">
+                                        <v-icon left large color="white">mdi-tune</v-icon>
+                                        <div>
+                                            <div class="text-h5 font-weight-bold">Tu Perfil Musical</div>
+                                            <div class="caption">Cuéntanos qué te gusta escuchar</div>
+                                        </div>
+                                    </div>
+                                </v-sheet>
+
+                                <v-card-text class="pa-8">
+                                    <v-form ref="profileForm">
+                                        <!-- Géneros -->
+                                        <v-combobox
+                                            v-model="userProfile.genres"
+                                            :items="availableGenres"
+                                            label="Géneros Favoritos"
+                                            multiple
+                                            chips
+                                            deletable-chips
+                                            clearable
+                                            required
+                                            hint="Selecciona al menos un género"
+                                            persistent-hint
+                                            prepend-icon="mdi-music"
+                                        >
+                                            <template v-slot:selection="{ attrs, item, select, selected }">
+                                                <v-chip
+                                                    v-bind="attrs"
+                                                    :input-value="selected"
+                                                    close
+                                                    @click="select"
+                                                    @click:close="userProfile.genres = userProfile.genres.filter(g => g !== item)"
+                                                    color="purple"
+                                                    text-color="white"
+                                                    class="ma-1"
+                                                >
+                                                    {{ item }}
+                                                </v-chip>
+                                            </template>
+                                        </v-combobox>
+
+                                        <!-- Mood -->
+                                        <v-select
+                                            v-model="userProfile.mood"
+                                            :items="moods"
+                                            label="¿Cómo te sientes hoy?"
+                                            prepend-icon="mdi-emoticon"
+                                            class="mt-6"
+                                            clearable
+                                        >
+                                            <template v-slot:item="{ item }">
+                                                <v-icon class="mr-3">mdi-emoticon</v-icon>
+                                                {{ item }}
+                                            </template>
+                                        </v-select>
+
+                                        <!-- Energy Slider -->
+                                        <div class="mt-8">
+                                            <v-slider
+                                                v-model="userProfile.energy"
+                                                label="Nivel de Energía"
+                                                min="0"
+                                                max="100"
+                                                thumb-label="always"
+                                                prepend-icon="mdi-lightning-bolt"
+                                                color="amber darken-2"
+                                                track-color="grey lighten-2"
+                                            >
+                                                <template v-slot:thumb-label="{ value }">
+                                                    {{ value }}
+                                                </template>
+                                            </v-slider>
+                                            
+                                            <div class="d-flex justify-space-between caption grey--text">
+                                                <span>😴 Relajado</span>
+                                                <span>⚡ Energético</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="d-flex mt-8 gap-2">
+                                            <v-btn
+                                                large
+                                                color="purple"
+                                                dark
+                                                @click="getRecommendations"
+                                                :loading="loading"
+                                                :disabled="loading || userProfile.genres.length === 0"
+                                                class="flex-grow-1"
+                                                elevation="4"
+                                            >
+                                                <v-icon left>mdi-magnify</v-icon>
+                                                Buscar Música
+                                            </v-btn>
+                                            
+                                            <v-btn
+                                                v-if="recommendations.length > 0"
+                                                large
+                                                outlined
+                                                color="grey"
+                                                @click="clearRecommendations"
+                                            >
+                                                <v-icon>mdi-refresh</v-icon>
+                                            </v-btn>
+                                        </div>
+                                    </v-form>
+                                </v-card-text>
+                            </v-card>
+
+                            <!-- Alerts -->
+                            <transition name="fade">
+                                <v-alert 
+                                    v-if="alert.show" 
+                                    :type="alert.type" 
+                                    dense 
+                                    dismissible 
+                                    v-model="alert.show" 
+                                    class="mb-6"
+                                    border="left"
+                                    colored-border
+                                    elevation="2"
+                                >
+                                    {{ alert.message }}
+                                </v-alert>
+                            </transition>
+
+                            <!-- Recommendations Grid -->
+                            <transition name="fade">
+                                <div v-if="recommendations.length > 0">
+                                    <div class="d-flex align-center justify-space-between mb-6">
+                                        <div>
+                                            <h2 class="text-h5 font-weight-bold">
+                                                <v-icon color="purple" class="mr-2">mdi-playlist-music</v-icon>
+                                                Tus Recomendaciones
+                                            </h2>
+                                            <p class="caption grey--text">Basadas en tus preferencias musicales</p>
+                                        </div>
+                                        
+                                        <v-chip color="purple" text-color="white">
+                                            {{ recommendations.length }} canciones
+                                        </v-chip>
+                                    </div>
+
+                                    <v-row>
+                                        <v-col
+                                            v-for="song in recommendations"
+                                            :key="song.id"
+                                            cols="12" 
+                                            sm="6" 
+                                            md="6"
+                                            lg="4"
+                                        >
+                                            <song-card 
+                                                :song="song" 
+                                                @like="likeSong"
+                                                @play="playSong"
+                                                @share="() => {}"
+                                                @more="() => {}"
+                                            ></song-card>
+                                        </v-col>
+                                    </v-row>
+                                </div>
+                            </transition>
+
+                            <!-- Empty State -->
+                            <v-alert
+                                v-if="showEmptyState && isAuthenticated && recommendations.length === 0"
+                                border="left"
+                                colored-border
+                                color="purple"
+                                elevation="2"
+                                class="mt-6 glass-card"
+                            >
+                                <div class="text-center py-8">
+                                    <v-icon size="80" color="purple" class="mb-4 pulse-animation">
+                                        mdi-music-note-off
+                                    </v-icon>
+                                    <h3 class="text-h5 font-weight-bold mb-3">
+                                        ¡Empieza tu viaje musical!
+                                    </h3>
+                                    <p class="text-body-1 grey--text">
+                                        Selecciona tus géneros favoritos y descubre música increíble personalizada para ti.
+                                    </p>
+                                </div>
+                            </v-alert>
                         </v-col>
                     </v-row>
-                    </div>
-
-                    <v-alert
-                    v-if="showEmptyState && isAuthenticated"
-                    border="left"
-                    colored-border
-                    color="indigo lighten-3"
-                    elevation="2"
-                    class="mt-6"
-                    >
-                    <div class="text-center">
-                        <v-icon large class="mb-2">mdi-music-note-off</v-icon>
-                        <h3 class="headline">Completa tu perfil musical</h3>
-                        <p>Selecciona tus géneros favoritos y preferencias para que Symphonaut encuentre tu próxima canción favorita.</p>
-                    </div>
-                    </v-alert>
-                </v-col>
-                </v-row>
-            </v-container>
+                </v-container>
             </v-main>
 
-            <v-footer color="indigo darken-4" padless dark>
-            <v-col class="text-center py-4" cols="12">
-                Symphonaut - Sistema Experto Musical &copy; {{ new Date().getFullYear() }}
-            </v-col>
+            <!-- Footer -->
+            <v-footer color="transparent" padless>
+                <v-col class="text-center py-4" cols="12">
+                    <div class="white--text">
+                        <strong>Symphonaut</strong> - Sistema de Recomendaciones Musicales
+                    </div>
+                    <div class="caption white--text mt-1">
+                        Powered by Spotify API &copy; {{ new Date().getFullYear() }}
+                    </div>
+                </v-col>
             </v-footer>
-        </v-app>divider-divider>
+        </v-app>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
-    <script type="module" src="src/app.js"></script>
+    <script src="src/app.js"></script>
 </body>
 </html>

@@ -1,119 +1,271 @@
-# Symphonaut — Recomendaciones Inteligentes / Smart Music Recommender
+# 🎵 Symphonaut
 
-deploy: (Work in progress)
+**Sistema de Recomendaciones Musicales Inteligentes** que utiliza la API de Spotify para proporcionar sugerencias personalizadas basadas en tus géneros favoritos, estado de ánimo y nivel de energía.
 
-ESPAÑOL
--------
+![Symphonaut Banner](https://img.shields.io/badge/Spotify-API-1DB954?style=for-the-badge&logo=spotify&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Vue.js](https://img.shields.io/badge/Vue.js-2.x-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white)
 
-Descripción
------------
-Symphonaut es una aplicación web ligera que ofrece recomendaciones musicales inteligentes y personalizadas basadas en el perfil del usuario (géneros, estado de ánimo y energía). La interfaz usa Vue + Vuetify y se integra con un backend minimalista (Python/Flask en `Backend/server.py`) para autenticación con Spotify, petición de recomendaciones y control de reproducción.
+## ✨ Características
 
-Estructura del proyecto
------------------------
-- `index.html` — Página principal y contenedor de la app Vue.
-- `src/app.js` — Lógica de la aplicación Vue (autenticación, formularios, llamadas al backend, manejo de recomendaciones).
-- `src/styles.css` — Estilos personalizados (si existen).
-- `Backend/server.py` — Backend (servidor) que gestiona la autenticación con Spotify y expone endpoints como `/login`, `/me`, `/recomendar`, `/like` y `/play`.
+- 🎯 **Recomendaciones Personalizadas**: Basadas en géneros, mood y energía
+- 🎨 **Interfaz Moderna**: Diseño glass-morphism con animaciones suaves
+- 🔐 **Autenticación Segura**: OAuth 2.0 con Spotify
+- ▶️ **Control de Reproducción**: Reproduce canciones directamente desde la app
+- ❤️ **Gestión de Me Gusta**: Guarda tus canciones favoritas
+- 📊 **Estadísticas en Tiempo Real**: Visualiza tus métricas musicales
 
-Requisitos
-----------
-- Navegador moderno con soporte para ES Modules.
-- Python 3.8+ para el backend (si se utiliza el servidor adjunto).
-- Dependencias de Python para el backend (Flask, requests, dotenV o similares). Añadir `requirements.txt` más adelante.
+## 🚀 Demo en Vivo
+[WORK IN PROGRESS]
 
-Instalación y ejecución (desarrollo)
------------------------------------
-1. Clona el repositorio y abre el proyecto en tu editor.
-2. Levanta el backend (ejemplo con virtualenv):
+- **Frontend**: [link aun no disponible](https://symphonaut.onrender.com)
+- **Backend API**: [link aun no disponible](https://symphonaut-api.onrender.com)
 
-   ```powershell
-   cd Backend
-   python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
-   python server.py
+## 📋 Requisitos Previos
+
+- Python 3.11 o superior
+- Cuenta de Spotify (Premium recomendado para reproducción)
+- Cuenta en [Render.com](https://render.com) (para deployment)
+- Cuenta de desarrollador de Spotify
+
+## 🔧 Configuración Local
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/tu-usuario/symphonaut.git
+cd symphonaut
+```
+
+### 2. Configurar Credenciales de Spotify
+
+1. Ve a [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Crea una nueva aplicación
+3. Obtén tu `Client ID` y `Client Secret`
+4. Añade estas Redirect URIs:
+   - `http://127.0.0.1:5000/callback` (para desarrollo local)
+   - `https://tu-backend.onrender.com/callback` (para producción)
+
+### 3. Configurar Variables de Entorno
+
+Crea un archivo `.env` en la raíz del proyecto:
+
+```bash
+cp .env.example .env
+```
+
+Edita `.env` con tus credenciales:
+
+```env
+SPOTIFY_CLIENT_ID=tu_client_id_aqui
+SPOTIFY_CLIENT_SECRET=tu_client_secret_aqui
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:5000/callback
+FRONTEND_URL=http://127.0.0.1:5500
+```
+
+### 4. Instalar Dependencias
+
+```bash
+# Backend
+pip install -r requirements.txt
+```
+
+### 5. Ejecutar la Aplicación
+
+**Backend:**
+```bash
+python Backend/server.py
+```
+
+El servidor estará disponible en `http://127.0.0.1:5000`
+
+**Frontend:**
+```bash
+# Usando Python
+cd Frontend
+python -m http.server 5500
+
+# O usando Live Server en VS Code
+# Haz clic derecho en index.html > "Open with Live Server"
+```
+
+El frontend estará disponible en `http://127.0.0.1:5500`
+
+## 🌐 Deployment en Render
+
+### Opción 1: Deployment Automático con render.yaml
+
+1. **Sube tu código a GitHub**
+
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/tu-usuario/symphonaut.git
+git push -u origin main
+```
+
+2. **Crea una cuenta en Render**
+   - Ve a [render.com](https://render.com) y crea una cuenta
+   - Conecta tu cuenta de GitHub
+
+3. **Crea el servicio Backend**
+   - Click en "New +" → "Web Service"
+   - Conecta tu repositorio de GitHub
+   - Configuración:
+     - **Name**: `symphonaut-backend`
+     - **Environment**: `Python 3`
+     - **Build Command**: `pip install -r requirements.txt`
+     - **Start Command**: `gunicorn server:app`
+     - **Root Directory**: `Backend` (si tienes los archivos en una carpeta)
+
+4. **Configura las Variables de Entorno en Render**
+   
+   En el dashboard del servicio, ve a "Environment" y añade:
+   
+   ```
+   SPOTIFY_CLIENT_ID=tu_client_id
+   SPOTIFY_CLIENT_SECRET=tu_client_secret
+   SPOTIFY_REDIRECT_URI=https://symphonaut-backend.onrender.com/callback
+   FRONTEND_URL=https://symphonaut-frontend.onrender.com
    ```
 
-   Si aún no tienes `requirements.txt`, instala al menos Flask: `pip install flask requests`.
+5. **Crea el servicio Frontend**
+   - Click en "New +" → "Static Site"
+   - Conecta el mismo repositorio
+   - Configuración:
+     - **Name**: `symphonaut-frontend`
+     - **Build Command**: (déjalo vacío)
+     - **Publish Directory**: `.` (o la carpeta donde está tu index.html)
 
-3. Abre `index.html` en tu navegador (o sirve la carpeta con un servidor estático).
-4. Haz clic en "Iniciar Sesión con Spotify" para autenticarse y probar las recomendaciones.
+6. **Actualiza la URL del Backend en el Frontend**
+   
+   Edita `app.js` y cambia:
+   ```javascript
+   const API_URL = 'https://symphonaut-backend.onrender.com';
+   ```
 
-Uso
+7. **Actualiza las Redirect URIs en Spotify**
+   - Ve a tu app en Spotify Developer Dashboard
+   - Añade: `https://symphonaut-backend.onrender.com/callback`
+
+### Opción 2: Deployment Manual
+
+**Backend:**
+
+```bash
+# 1. Crea un nuevo Web Service en Render
+# 2. Conecta tu repositorio
+# 3. Configura:
+#    - Build Command: pip install -r requirements.txt
+#    - Start Command: gunicorn server:app
+#    - Añade las variables de entorno
+```
+
+**Frontend:**
+
+```bash
+# 1. Crea un nuevo Static Site en Render
+# 2. Conecta tu repositorio
+# 3. Publica la carpeta con index.html
+```
+
+## 🔒 Seguridad
+
+- ✅ Variables de entorno para credenciales sensibles
+- ✅ CORS configurado apropiadamente
+- ✅ Validación de entrada en todas las rutas
+- ✅ Manejo de errores robusto
+- ✅ Logging para auditoría
+- ✅ Sin credenciales hardcodeadas en el código
+
+## 🎨 Tecnologías Utilizadas
+
+### Backend
+- **Flask**: Framework web ligero
+- **Spotipy**: Cliente Python para Spotify API
+- **Flask-CORS**: Manejo de CORS
+- **Gunicorn**: Servidor WSGI para producción
+
+### Frontend
+- **Vue.js 2**: Framework JavaScript progresivo
+- **Vuetify 2**: Framework de componentes Material Design
+- **Axios**: Cliente HTTP
+- **CSS3**: Animaciones y glass-morphism
+
+## 📁 Estructura del Proyecto
+
+```
+symphonaut/
+├── Backend/
+│   ├── server.py           # API Flask
+│   └── requirements.txt    # Dependencias Python
+├── Frontend/
+│   ├── index.html         # Página principal
+│   ├── src/
+│   │   └── app.js        # Lógica Vue.js
+│   └── assets/           # Imágenes y recursos
+├── .env.example          # Ejemplo de variables de entorno
+├── .gitignore           # Archivos a ignorar
+├── render.yaml          # Configuración de Render
+└── README.md            # Este archivo
+```
+
+## 🐛 Solución de Problemas
+
+### Error: "No se encontró dispositivo activo"
+- Abre Spotify en tu computadora, teléfono o navegador
+- Asegúrate de tener Spotify Premium
+
+### Error: "Authorization header is missing"
+- Cierra sesión y vuelve a iniciar sesión
+- Verifica que las variables de entorno estén configuradas
+
+### Error: "CORS policy"
+- Verifica que `FRONTEND_URL` esté correctamente configurada
+- Asegúrate de que ambos servicios estén corriendo
+
+### El backend no se conecta en Render
+- Verifica que todas las variables de entorno estén configuradas
+- Revisa los logs en el dashboard de Render
+- Asegúrate de usar `gunicorn` como start command
+
+## 📝 Variables de Entorno
+
+| Variable | Descripción | Ejemplo |
+|----------|-------------|---------|
+| `SPOTIFY_CLIENT_ID` | ID de tu app de Spotify | `abc123...` |
+| `SPOTIFY_CLIENT_SECRET` | Secret de tu app | `xyz789...` |
+| `SPOTIFY_REDIRECT_URI` | URI de callback | `https://tu-app.onrender.com/callback` |
+| `FRONTEND_URL` | URL de tu frontend | `https://tu-frontend.onrender.com` |
+| `PORT` | Puerto del servidor | `5000` (Render lo configura automáticamente) |
+
+## 🤝 Contribuciones
+
+Las contribuciones son bienvenidas! Por favor:
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 👨‍💻 Autor
+
+Tu Nombre - [da_fnx](https://www.instagram.com/da_fnx)
+
+## 🙏 Agradecimientos
+
+- [Spotify Web API](https://developer.spotify.com/documentation/web-api/)
+- [Spotipy](https://spotipy.readthedocs.io/)
+- [Vue.js](https://vuejs.org/)
+- [Vuetify](https://vuetifyjs.com/)
+- [Render](https://render.com/)
+
 ---
-- Completa tu perfil musical (selecciona géneros, estado de ánimo y nivel de energía) y pulsa "Obtener Recomendaciones".
-- Desde la lista de recomendaciones puedes reproducir canciones, marcarlas como "Me gusta" y ver métricas básicas (energía, popularidad, match %).
 
-Notas de integración
---------------------
-- `src/app.js` espera que el backend esté corriendo en `http://127.0.0.1:5000` con endpoints REST específicos. Ajusta las URLs si ejecutas el backend en otra dirección o puerto.
-- La app guarda el token de Spotify en `localStorage` y lo añade en la cabecera `Authorization: Bearer <token>` para las llamadas al backend.
-
-Seguridad y privacidad
-----------------------
-- Evita subir el `client_secret` de Spotify a repositorios públicos. El flujo de OAuth debe manejarse en el backend.
-
-Contribuciones y próximos pasos
--------------------------------
-- Añadir `requirements.txt` y scripts en `package.json` para facilitar el arranque.
-- Mejorar el manejo de errores en el backend y añadir tests básicos.
-- Añadir un Dockerfile y despliegue (actualmente en progreso).
-
-ENGLISH
--------
-
-Description
------------
-Symphonaut is a lightweight web app that provides intelligent, personalized music recommendations based on a user's profile (genres, mood and energy). The UI is built with Vue + Vuetify and integrates with a minimal Python/Flask backend (`Backend/server.py`) for Spotify authentication, recommendation requests and playback control.
-
-Project structure
------------------
-- `index.html` — Main page and Vue app container.
-- `src/app.js` — Vue application logic (auth, forms, backend calls, recommendations handling).
-- `src/styles.css` — Custom styles (if present).
-- `Backend/server.py` — Backend server that handles Spotify auth and exposes endpoints like `/login`, `/me`, `/recomendar`, `/like` and `/play`.
-
-Requirements
-------------
-- Modern browser with ES Modules support.
-- Python 3.8+ for the backend (if you use the included server).
-- Python dependencies for the backend (Flask, requests, dotenv or similar). Add a `requirements.txt` later.
-
-Installation & Running (development)
-------------------------------------
-1. Clone the repo and open the project in your editor.
-2. Start the backend (example with virtualenv):
-
-   ```powershell
-   cd Backend
-   python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
-   python server.py
-   ```
-
-   If `requirements.txt` is missing, install at least Flask: `pip install flask requests`.
-
-3. Open `index.html` in your browser (or serve the folder with a static server).
-4. Click "Login with Spotify" to authenticate and test recommendations.
-
-Usage
------
-- Fill your musical profile (select genres, mood and energy) and click "Get Recommendations".
-- From the recommendations list you can play tracks, like them and view basic metrics (energy, popularity, match %).
-
-Integration notes
------------------
-- `src/app.js` assumes the backend runs at `http://127.0.0.1:5000` and exposes certain REST endpoints. Adjust the URLs if you run the backend somewhere else.
-- The app stores the Spotify token in `localStorage` and includes it in the `Authorization: Bearer <token>` header for backend calls.
-
-Security & Privacy
-------------------
-- Do not commit your Spotify `client_secret` to public repositories. OAuth flow should be handled on the backend.
-
-Contributing & Next steps
--------------------------
-- Add `requirements.txt` and `package.json` scripts to simplify startup.
-- Improve backend error handling and add basic tests.
-- Add a Dockerfile and deployment instructions (work in progress).
-
-License
--------
-Aún no se ha especificado una licencia. Añade una si deseas permitir contribuciones públicas.
+⭐️ Si te gusta este proyecto, ¡dale una estrella en GitHub!

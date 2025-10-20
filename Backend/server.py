@@ -1,43 +1,42 @@
-# --- PASO 1: INSTALAR LAS LIBRERÍAS NECESARIAS ---
-# pip install Flask Flask-Cors spotipy requests
-
+import os
 from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy.exceptions import SpotifyException
-import os
 import logging
 import random
 import requests
-from dotenv import load_dotenv
+from functools import wraps
+from datetime import datetime
 
 app = Flask(__name__)
-# --- CONFIGURACIÓN DE LA APP ---
-CORS(app, origins=["http://localhost:5500", "http://127.0.0.1:5500"], supports_credentials=True)
 
-# --- CONFIGURACIÓN DE SPOTIPY (API DE SPOTIFY) ---
-# Load secrets from environment/.env. Add your .env to .gitignore to avoid committing credentials.
-try:
-    load_dotenv()
-except Exception:
-    # python-dotenv is optional; fall back to environment variables
-    pass
+# --- CONFIGURACIÓN SEGURA ---
+# Usa variables de entorno para credenciales sensibles
+SPOTIPY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
+SPOTIPY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET")
+SPOTIPY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:5000/callback")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5500")
 
-SPOTIPY_CLIENT_ID = os.environ.get("SPOTIPY_CLIENT_ID")
-SPOTIPY_CLIENT_SECRET = os.environ.get("SPOTIPY_CLIENT_SECRET")
-SPOTIPY_REDIRECT_URI = os.environ.get("SPOTIPY_REDIRECT_URI")
+# Validación de variables de entorno críticas
+if not SPOTIPY_CLIENT_ID or not SPOTIPY_CLIENT_SECRET:
+    raise ValueError("Las variables de entorno SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET son requeridas")
 
-if not SPOTIPY_CLIENT_ID or not SPOTIPY_CLIENT_SECRET or not SPOTIPY_REDIRECT_URI:
-    missing = [name for name, val in (("SPOTIPY_CLIENT_ID", SPOTIPY_CLIENT_ID),
-                                      ("SPOTIPY_CLIENT_SECRET", SPOTIPY_CLIENT_SECRET),
-                                      ("SPOTIPY_REDIRECT_URI", SPOTIPY_REDIRECT_URI)) if not val]
-    raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+# CORS configurado para producción
+CORS(app, 
+     origins=[FRONTEND_URL, "http://localhost:5500", "http://127.0.0.1:5500"],
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"])
 
 SCOPE = "user-read-private user-read-email user-library-read user-library-modify streaming user-modify-playback-state user-top-read user-follow-read"
 
-# Configuración de logging más detallada
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging mejorado
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 auth_manager = SpotifyOAuth(
     client_id=SPOTIPY_CLIENT_ID,
@@ -48,167 +47,236 @@ auth_manager = SpotifyOAuth(
     requests_timeout=30
 )
 
-# --- RUTAS DE AUTENTICACIÓN (SIN CAMBIOS) ---
+# --- DECORADOR PARA AUTENTICACIÓN ---
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            sp = get_spotify_client_from_request()
+            return f(sp, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error de autenticación: {e}")
+            return jsonify({"error": "No autorizado", "message": str(e)}), 401
+    return decorated_function
+
+# --- FUNCIÓN DE AYUDA MEJORADA ---
+def get_spotify_client_from_request():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        raise Exception("Authorization header is missing")
+    
+    parts = auth_header.split(" ")
+    if len(parts) != 2 or parts[0] != "Bearer":
+        raise Exception("Invalid Authorization header format")
+    
+    access_token = parts[1]
+    session = requests.Session()
+    session.proxies = {}
+    
+    return spotipy.Spotify(
+        auth=access_token,
+        requests_timeout=30,
+        retries=3,
+        requests_session=session
+    )
+
+# --- RUTAS DE AUTENTICACIÓN ---
 @app.route('/login')
 def login():
     auth_url = auth_manager.get_authorize_url()
+    logger.info("Usuario redirigido a login de Spotify")
     return redirect(auth_url)
 
 @app.route('/callback')
 def callback():
     try:
-        token_info = auth_manager.get_access_token(code=request.args.get("code"))
+        code = request.args.get("code")
+        if not code:
+            error = request.args.get("error", "unknown_error")
+            logger.error(f"Error en callback: {error}")
+            return redirect(f"{FRONTEND_URL}#error={error}")
+        
+        token_info = auth_manager.get_access_token(code)
         access_token = token_info['access_token']
-        return redirect(f"http://127.0.0.1:5500/#{access_token}")
+        logger.info("Token obtenido exitosamente")
+        return redirect(f"{FRONTEND_URL}#{access_token}")
     except Exception as e:
-        error_description = request.args.get("error", "un error desconocido.")
-        return redirect(f"http://1.27.0.0.1:5500/#error={error_description}")
+        logger.error(f"Error en callback: {e}")
+        return redirect(f"{FRONTEND_URL}#error=authentication_failed")
 
-# --- FUNCIÓN DE AYUDA CON LOGGING ADICIONAL ---
-def get_spotify_client_from_request():
-    # LOG: Revisar si existen variables de entorno de proxy
-    http_proxy = os.environ.get('HTTP_PROXY')
-    https_proxy = os.environ.get('HTTPS_PROXY')
-    logging.info(f"Variable de entorno HTTP_PROXY: {http_proxy}")
-    logging.info(f"Variable de entorno HTTPS_PROXY: {https_proxy}")
-
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        logging.error("Header 'Authorization' no encontrado en la petición.")
-        raise Exception("Authorization header is missing")
-    
-    # LOG: Confirmar que el token se está recibiendo
-    logging.info(f"Header 'Authorization' recibido, comienza con: {auth_header[:15]}...")
-    
-    try:
-        parts = auth_header.split(" ")
-        if len(parts) != 2 or parts[0] != "Bearer":
-            raise Exception("Invalid Authorization header format. Expected 'Bearer <token>'")
-        access_token = parts[1]
-        
-        session = requests.Session()
-        session.proxies = {}
-        
-        return spotipy.Spotify(
-            auth=access_token, 
-            requests_timeout=30, 
-            retries=3, 
-            requests_session=session
-        )
-    
-    except Exception as e:
-        logging.error(f"Error al procesar el header de autorización: {e}")
-        raise Exception(str(e))
-
-# --- RUTA DE RECOMENDACIONES (VERSIÓN DE PRUEBA FINAL) ---
-@app.route('/recomendar', methods=['POST'])
-def recomendar():
-    logging.info("==========================================================")
-    logging.info("==== INICIANDO PETICIÓN /recomendar (PRUEBA GLOBAL) ====")
-    logging.info("==========================================================")
-    
-    try:
-        sp = get_spotify_client_from_request()
-    except Exception as e:
-        return jsonify({"error": str(e)}), 401
-
-    user_profile = request.json
-    if not user_profile or 'genres' not in user_profile or not user_profile['genres']:
-        return jsonify({"error": "Selecciona al menos un género musical"}), 400
-
-    query_parts = []
-    genres = user_profile.get('genres', [])
-    
-    # --- CAMBIO 1: USAMOS SOLO EL PRIMER GÉNERO PARA SIMPLIFICAR LA PRUEBA ---
-    if genres:
-        first_genre = genres[0].lower().strip()
-        query_parts.append(f'genre:"{first_genre}"')
-        logging.info(f"Simplificando la búsqueda para probar solo con el género: {first_genre}")
-    else:
-        return jsonify([])
-
-    # --- TEMPORALMENTE DESACTIVADO PARA LA PRUEBA ---
-    # try:
-    #     top_artists = sp.current_user_top_artists(limit=3, time_range='short_term')
-    #     if top_artists['items']:
-    #         for artist in top_artists['items']:
-    #             query_parts.append(f'artist:"{artist["name"]}"')
-    # except Exception as e:
-    #     logging.warning(f"No se pudieron obtener artistas top (continuando solo con géneros): {e}")
-
-    search_query = " ".join(query_parts)
-    logging.info(f"Query de búsqueda de prueba construida: {search_query}")
-
-    try:
-        logging.info("Ejecutando búsqueda simple y global...")
-        
-        # --- CAMBIO 2: AÑADIMOS market=None PARA BUSCAR EN EL CATÁLOGO GLOBAL ---
-        results = sp.search(q=search_query, type='track', limit=50, market=None)
-        
-        tracks = results.get('tracks', {}).get('items', [])
-        logging.info(f"Búsqueda global encontró {len(tracks)} canciones.")
-
-    except Exception as e:
-        logging.error(f"FALLÓ la llamada de búsqueda. Error: {e}")
-        return jsonify([])
-
-    recommendations = []
-    for track in tracks:
-        if not track or not track.get('album') or not track['album']['images']:
-            continue
-        
-        recommendations.append({
-            "id": track['id'], "title": track['name'], "artist": ", ".join([artist['name'] for artist in track['artists']]),
-            "cover": track['album']['images'][0]['url'], "spotify_uri": track['uri']
-        })
-    
-    random.shuffle(recommendations)
-    logging.info(f"Proceso finalizado. Devolviendo {len(recommendations)} recomendaciones.")
-    logging.info("==========================================================")
-    return jsonify(recommendations)
-
-# --- OTRAS RUTAS (SIN CAMBIOS) ---
+# --- RUTA DE PERFIL DE USUARIO ---
 @app.route('/me')
-def get_current_user():
+@require_auth
+def get_current_user(sp):
     try:
-        sp = get_spotify_client_from_request()
         user_data = sp.current_user()
-        return jsonify({"name": user_data.get('display_name', 'Usuario')})
+        return jsonify({
+            "name": user_data.get('display_name', 'Usuario'),
+            "email": user_data.get('email'),
+            "id": user_data.get('id')
+        })
     except Exception as e:
-        return jsonify({"error": str(e)}), 401
+        logger.error(f"Error obteniendo perfil: {e}")
+        return jsonify({"error": str(e)}), 500
 
+# --- RUTA DE RECOMENDACIONES MEJORADA ---
+@app.route('/recomendar', methods=['POST'])
+@require_auth
+def recomendar(sp):
+    logger.info("=== Iniciando solicitud de recomendaciones ===")
+    
+    try:
+        user_profile = request.get_json()
+        
+        # Validación de entrada
+        if not user_profile:
+            return jsonify({"error": "No se proporcionó perfil de usuario"}), 400
+        
+        genres = user_profile.get('genres', [])
+        if not genres:
+            return jsonify({"error": "Selecciona al menos un género musical"}), 400
+        
+        mood = user_profile.get('mood')
+        energy = user_profile.get('energy', 50)
+        
+        logger.info(f"Perfil recibido - Géneros: {genres}, Mood: {mood}, Energy: {energy}")
+        
+        # Construir query de búsqueda
+        query_parts = []
+        
+        # Usar los primeros 3 géneros para no sobrecargar la query
+        for genre in genres[:3]:
+            query_parts.append(f'genre:"{genre.lower().strip()}"')
+        
+        # Intentar obtener artistas top del usuario
+        try:
+            top_artists = sp.current_user_top_artists(limit=2, time_range='short_term')
+            if top_artists.get('items'):
+                for artist in top_artists['items'][:2]:
+                    query_parts.append(f'artist:"{artist["name"]}"')
+                logger.info(f"Artistas top incluidos: {[a['name'] for a in top_artists['items'][:2]]}")
+        except Exception as e:
+            logger.warning(f"No se pudieron obtener artistas top: {e}")
+        
+        search_query = " OR ".join(query_parts)
+        logger.info(f"Query de búsqueda: {search_query}")
+        
+        # Realizar búsqueda
+        results = sp.search(q=search_query, type='track', limit=50, market=None)
+        tracks = results.get('tracks', {}).get('items', [])
+        logger.info(f"Búsqueda encontró {len(tracks)} canciones")
+        
+        # Procesar recomendaciones
+        recommendations = []
+        for track in tracks:
+            if not track or not track.get('album') or not track['album'].get('images'):
+                continue
+            
+            # Calcular score de coincidencia basado en popularidad y características
+            popularity = track.get('popularity', 0)
+            score = min(100, popularity + random.randint(-10, 10))
+            
+            recommendations.append({
+                "id": track['id'],
+                "title": track['name'],
+                "artist": ", ".join([artist['name'] for artist in track['artists']]),
+                "artists": [artist['name'] for artist in track['artists']],
+                "album": track['album']['name'],
+                "cover": track['album']['images'][0]['url'] if track['album']['images'] else None,
+                "albumArt": track['album']['images'][0]['url'] if track['album']['images'] else None,
+                "spotify_uri": track['uri'],
+                "popularity": popularity,
+                "score": score,
+                "matchPercent": score,
+                "genres": genres[:3],
+                "energy": energy,
+                "liked": False
+            })
+        
+        # Ordenar por score y randomizar un poco
+        recommendations.sort(key=lambda x: x['score'], reverse=True)
+        top_recommendations = recommendations[:20]
+        random.shuffle(top_recommendations)
+        
+        logger.info(f"Devolviendo {len(top_recommendations)} recomendaciones")
+        return jsonify(top_recommendations)
+        
+    except Exception as e:
+        logger.error(f"Error en /recomendar: {e}", exc_info=True)
+        return jsonify({"error": "Error al obtener recomendaciones", "message": str(e)}), 500
+
+# --- RUTA PARA DAR LIKE ---
 @app.route('/like', methods=['POST'])
-def like_song():
-    track_id = request.json.get('track_id')
-    if not track_id:
-        return jsonify({"status": "error", "message": "track_id es requerido"}), 400
+@require_auth
+def like_song(sp):
     try:
-        sp = get_spotify_client_from_request()
+        data = request.get_json()
+        track_id = data.get('track_id')
+        
+        if not track_id:
+            return jsonify({"status": "error", "message": "track_id es requerido"}), 400
+        
         sp.current_user_saved_tracks_add(tracks=[track_id])
+        logger.info(f"Canción {track_id} añadida a Me gusta")
         return jsonify({"status": "success", "message": "Canción guardada en 'Me gusta'"})
-    except spotipy.exceptions.SpotifyException as e:
+        
+    except SpotifyException as e:
+        logger.error(f"Error de Spotify al dar like: {e}")
         return jsonify({"status": "error", "message": str(e.msg)}), e.http_status
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 401
+        logger.error(f"Error al dar like: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-
+# --- RUTA PARA REPRODUCIR ---
 @app.route('/play', methods=['POST'])
-def play_song():
-    track_uri = request.json.get('track_uri')
-    if not track_uri:
-        return jsonify({"error": "track_uri es requerido"}), 400
+@require_auth
+def play_song(sp):
     try:
-        sp = get_spotify_client_from_request()
+        data = request.get_json()
+        track_uri = data.get('track_uri')
+        
+        if not track_uri:
+            return jsonify({"error": "track_uri es requerido"}), 400
+        
         sp.start_playback(uris=[track_uri])
+        logger.info(f"Reproduciendo canción: {track_uri}")
         return jsonify({"status": "success", "message": "Reproduciendo canción"})
-    except spotipy.exceptions.SpotifyException as e:
+        
+    except SpotifyException as e:
         if e.http_status == 404:
-            return jsonify({"status": "error", "message": "No se encontró un dispositivo activo. Abre Spotify en tu teléfono, web o computadora."}), 404
+            return jsonify({
+                "status": "error",
+                "message": "No se encontró un dispositivo activo. Abre Spotify en tu dispositivo."
+            }), 404
         if e.http_status == 403:
-            return jsonify({"status": "error", "message": "La reproducción requiere una cuenta de Spotify Premium."}), 403
+            return jsonify({
+                "status": "error",
+                "message": "La reproducción requiere Spotify Premium."
+            }), 403
+        logger.error(f"Error de Spotify al reproducir: {e}")
         return jsonify({"status": "error", "message": str(e.msg)}), e.http_status
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 401
+        logger.error(f"Error al reproducir: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# --- RUTA DE HEALTH CHECK (útil para Render) ---
+@app.route('/health')
+def health_check():
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+# --- MANEJO DE ERRORES GLOBAL ---
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Endpoint no encontrado"}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Error interno del servidor: {error}")
+    return jsonify({"error": "Error interno del servidor"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)

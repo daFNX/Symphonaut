@@ -1,0 +1,28 @@
+name: Keep Render Service Alive
+
+on:
+  schedule:
+    # Ejecutar cada 14 minutos (servicios gratuitos de Render se duermen después de 15 min)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Permite ejecutar manualmente
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Ping Backend Service
+      run: |
+        echo "🚀 Pinging Symphonaut backend..."
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.BACKEND_URL }}/health)
+        echo "📡 Response code: $response"
+        
+        if [ $response -eq 200 ]; then
+          echo "✅ Service is alive!"
+        else
+          echo "⚠️ Service returned status $response"
+        fi
+    
+    - name: Log timestamp
+      run: |
+        echo "⏰ Ping completed at: $(date)"
