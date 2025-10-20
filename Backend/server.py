@@ -10,15 +10,29 @@ import os
 import logging
 import random
 import requests
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 # --- CONFIGURACIÓN DE LA APP ---
 CORS(app, origins=["http://localhost:5500", "http://127.0.0.1:5500"], supports_credentials=True)
 
 # --- CONFIGURACIÓN DE SPOTIPY (API DE SPOTIFY) ---
-SPOTIPY_CLIENT_ID = "9c5e860e97a44c98b2b14418567d8a57"
-SPOTIPY_CLIENT_SECRET = "ac032ee706f84154b345cd386dc388c5"
-SPOTIPY_REDIRECT_URI = "http://127.0.0.1:5000/callback"
+# Load secrets from environment/.env. Add your .env to .gitignore to avoid committing credentials.
+try:
+    load_dotenv()
+except Exception:
+    # python-dotenv is optional; fall back to environment variables
+    pass
+
+SPOTIPY_CLIENT_ID = os.environ.get("SPOTIPY_CLIENT_ID")
+SPOTIPY_CLIENT_SECRET = os.environ.get("SPOTIPY_CLIENT_SECRET")
+SPOTIPY_REDIRECT_URI = os.environ.get("SPOTIPY_REDIRECT_URI")
+
+if not SPOTIPY_CLIENT_ID or not SPOTIPY_CLIENT_SECRET or not SPOTIPY_REDIRECT_URI:
+    missing = [name for name, val in (("SPOTIPY_CLIENT_ID", SPOTIPY_CLIENT_ID),
+                                      ("SPOTIPY_CLIENT_SECRET", SPOTIPY_CLIENT_SECRET),
+                                      ("SPOTIPY_REDIRECT_URI", SPOTIPY_REDIRECT_URI)) if not val]
+    raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
 SCOPE = "user-read-private user-read-email user-library-read user-library-modify streaming user-modify-playback-state user-top-read user-follow-read"
 

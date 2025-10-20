@@ -1,0 +1,5 @@
+# ...existing code...
+Flask>=2.2,<3
+Flask-Cors>=3.0.10
+spotipy>=2.22.0
+requests>=2.28.2
